@@ -1,0 +1,36 @@
+name: Build grumpyscreen
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Build target'
+        required: true
+        default: 'mips'
+        type: choice
+        options: [mips, mips-small, rpi, rpi-small, sdl, sdl-small]
+
+jobs:
+  build:
+    runs-on: [self-hosted, mips-builder]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build
+        run: |
+          chmod +x build.sh
+          ./build.sh ${{ inputs.target || 'mips' }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grumpyscreen-mips
+          path: |
+            build/mips/bin/grumpyscreen
+            build/mips/bin/grumpyscreen.cfg
