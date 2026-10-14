@@ -2,6 +2,7 @@ name: branch build
 
 on:
   pull_request:
+  workflow_dispatch: # <-- AGGIUNGI QUESTA RIGA
   push:
     branches:
       - main
