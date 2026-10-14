@@ -47,7 +47,7 @@ jobs:
       with:
         submodules: recursive
         fetch-depth: 0
-
+        fetch-tags: true # <-- AGGIUNGI QUESTA RIGA
     - name: set grumpyscreen version
       run: |
         BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
@@ -116,7 +116,7 @@ jobs:
       with:
         submodules: recursive
         fetch-depth: 0
-
+        fetch-tags: true # <-- AGGIUNGI QUESTA RIGA
     - name: set grumpyscreen version
       run: |
         BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
