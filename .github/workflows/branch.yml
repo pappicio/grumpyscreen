@@ -2,7 +2,7 @@ name: branch build
 
 on:
   pull_request:
-  workflow_dispatch: # <-- AGGIUNGI QUESTA RIGA
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   compile:
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     strategy:
       matrix:
         include:
@@ -47,11 +47,16 @@ jobs:
       with:
         submodules: recursive
         fetch-depth: 0
-        fetch-tags: true # <-- AGGIUNGI QUESTA RIGA
+        fetch-tags: true
+
     - name: set grumpyscreen version
       run: |
         BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-        VERSION="v2.0.0-$(git rev-list --count 2.0.0..${{ github.sha }})"
+        if git rev-parse "2.0.0" >/dev/null 2>&1; then
+          VERSION="v2.0.0-$(git rev-list --count 2.0.0..${{ github.sha }})"
+        else
+          VERSION="v2.0.0-$(git rev-list --count HEAD)"
+        fi
         echo "GUPPYSCREEN_BRANCH=$BRANCH" >> $GITHUB_ENV
         echo "GUPPYSCREEN_VERSION=$VERSION" >> $GITHUB_ENV
         echo "Building branch $BRANCH, version $VERSION"
@@ -76,7 +81,7 @@ jobs:
       run: make -j
 
   release:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: write
     strategy:
@@ -96,8 +101,8 @@ jobs:
 
           - arch: armv8-rpi3-linux-gnueabihf-
             small: false
-            calibrate: true
             asset: grumpyscreen-rpi
+            calibrate: true
             build_dir: build/rpi
 
     runs-on: ubuntu-22.04
@@ -116,11 +121,16 @@ jobs:
       with:
         submodules: recursive
         fetch-depth: 0
-        fetch-tags: true # <-- AGGIUNGI QUESTA RIGA
+        fetch-tags: true
+
     - name: set grumpyscreen version
       run: |
         BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-        VERSION="v2.0.0-$(git rev-list --count 2.0.0..${{ github.sha }})"
+        if git rev-parse "2.0.0" >/dev/null 2>&1; then
+          VERSION="v2.0.0-$(git rev-list --count 2.0.0..${{ github.sha }})"
+        else
+          VERSION="v2.0.0-$(git rev-list --count HEAD)"
+        fi
         echo "GUPPYSCREEN_BRANCH=$BRANCH" >> $GITHUB_ENV
         echo "GUPPYSCREEN_VERSION=$VERSION" >> $GITHUB_ENV
         echo "Building branch $BRANCH, version $VERSION"
@@ -163,9 +173,8 @@ jobs:
           ${{ matrix.asset }}.tar.gz
         fail_on_unmatched_files: true
 
-  # versioned zip releases with release_info.json, so moonraker's update manager can update grumpyscreen
   zip-release:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: release
     permissions:
       contents: write
@@ -182,7 +191,11 @@ jobs:
 
     - name: package zips
       run: |
-        VERSION="v2.0.0-$(git rev-list --count 2.0.0..${{ github.sha }})"
+        if git rev-parse "2.0.0" >/dev/null 2>&1; then
+          VERSION="v2.0.0-$(git rev-list --count 2.0.0..${{ github.sha }})"
+        else
+          VERSION="v2.0.0-$(git rev-list --count HEAD)"
+        fi
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         for asset in grumpyscreen grumpyscreen-smallscreen grumpyscreen-rpi; do
           mkdir -p "unpack/$asset"
