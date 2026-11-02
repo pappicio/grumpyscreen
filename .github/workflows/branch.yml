@@ -1,7 +1,27 @@
 name: branch build
 
 on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Tipo di compilazione'
+        required: true
+        type: choice
+        options:
+          - all
+          - mips
+          - mips-small
+          - rpi
+        default: all
+
+      publish:
+        description: 'Pubblicare una release GitHub?'
+        required: true
+        type: boolean
+        default: false
+
   pull_request:
+
   push:
     branches:
       - main
@@ -11,7 +31,7 @@ permissions:
 
 jobs:
   compile:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
         include:
@@ -75,7 +95,7 @@ jobs:
       run: make -j
 
   release:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
     permissions:
       contents: write
     strategy:
