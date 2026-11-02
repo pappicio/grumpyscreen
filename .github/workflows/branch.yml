@@ -1,3 +1,4 @@
+
 name: branch build
 
 on:
@@ -32,25 +33,36 @@ permissions:
 jobs:
   compile:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - arch: mipsel-buildroot-linux-musl-
+          - target: mips
+            arch: mipsel-buildroot-linux-musl-
             small: false
             calibrate: false
             build_dir: build/mips
 
-          - arch: mipsel-buildroot-linux-musl-
+          - target: mips-small
+            arch: mipsel-buildroot-linux-musl-
             small: true
             calibrate: true
             build_dir: build/mips-small
 
-          - arch: armv8-rpi3-linux-gnueabihf-
+          - target: rpi
+            arch: armv8-rpi3-linux-gnueabihf-
             small: false
             calibrate: true
             build_dir: build/rpi
 
     runs-on: ubuntu-22.04
+
+    if: |
+      github.event_name == 'pull_request' ||
+      inputs.build_type == 'all' ||
+      inputs.build_type == matrix.target
+
     container:
       image: pellcorp/grumpydev:latest
       options: --user 1001
@@ -94,32 +106,56 @@ jobs:
     - name: make grumpyscreen
       run: make -j
 
+    - name: package release
+      if: github.event_name == 'workflow_dispatch' && inputs.publish == false
+      run: |
+        chmod +x ./release.sh
+        ./release.sh grumpyscreen-${{ matrix.target }} ${{ matrix.build_dir }}
+
+    - name: upload compiled binary
+      uses: actions/upload-artifact@v7
+      with:
+        name: grumpyscreen-${{ matrix.target }}
+        path: ./*.tar.gz
+        if-no-files-found: error
+
   release:
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+       inputs.publish &&
+       (inputs.build_type == 'all' || inputs.build_type == matrix.target))
+
     permissions:
       contents: write
+
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - arch: mipsel-buildroot-linux-musl-
+          - target: mips
+            arch: mipsel-buildroot-linux-musl-
             small: false
             asset: grumpyscreen
             calibrate: false
             build_dir: build/mips
 
-          - arch: mipsel-buildroot-linux-musl-
+          - target: mips-small
+            arch: mipsel-buildroot-linux-musl-
             small: true
             asset: grumpyscreen-smallscreen
             calibrate: true
             build_dir: build/mips-small
 
-          - arch: armv8-rpi3-linux-gnueabihf-
+          - target: rpi
+            arch: armv8-rpi3-linux-gnueabihf-
             small: false
             calibrate: true
             asset: grumpyscreen-rpi
             build_dir: build/rpi
 
     runs-on: ubuntu-22.04
+
     container:
       image: pellcorp/grumpydev:latest
       options: --user 1001
@@ -172,6 +208,7 @@ jobs:
       with:
         name: ${{ matrix.asset }}
         path: ./${{ matrix.asset }}.tar.gz
+        if-no-files-found: error
 
     - name: branch release
       uses: softprops/action-gh-release@v3
@@ -182,9 +219,8 @@ jobs:
           ${{ matrix.asset }}.tar.gz
         fail_on_unmatched_files: true
 
-  # versioned zip releases with release_info.json, so moonraker's update manager can update grumpyscreen
   zip-release:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish && inputs.build_type == 'all')
     needs: release
     permissions:
       contents: write
