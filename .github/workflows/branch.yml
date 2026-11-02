@@ -25,6 +25,12 @@ jobs:
             calibrate: true
             build_dir: build/mips-small
 
+          - arch: mipsel-buildroot-linux-musl-
+            small: false
+            calibrate: false
+            multitool: true
+            build_dir: build/multitool
+
           - arch: armv8-rpi3-linux-gnueabihf-
             small: false
             calibrate: true
@@ -64,6 +70,11 @@ jobs:
       name: export touch calibrate
       run: |
         echo "GUPPY_CALIBRATE=${{ matrix.calibrate }}" >> $GITHUB_ENV
+
+    - if: matrix.multitool
+      name: export multitool
+      run: |
+        echo "GUPPY_MULTITOOL=true" >> $GITHUB_ENV
 
     - name: make wpaclient
       run: make wpaclient

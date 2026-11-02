@@ -42,6 +42,10 @@ function docker_make() {
       MISC_ARGS+=" COSMOS=true"
     fi
 
+    if target_is_multitool "$TARGET"; then
+      MISC_ARGS+=" GUPPY_MULTITOOL=true"
+    fi
+
     echo "Args: $MISC_ARGS"
     docker run --name=grumpydev --rm --entrypoint /bin/bash -v $PWD:$PWD pellcorp/grumpydev -c "cd $PWD && $MISC_ARGS GUPPYSCREEN_VERSION=${GIT_REVISION} GUPPYSCREEN_BRANCH=$GIT_BRANCH make -j $makefile_arg $@"
 }
@@ -58,6 +62,8 @@ function target_base() {
     local target="${1%-small}"
     if [ "$target" = "wayland" ]; then
       echo "sdl"
+    elif [ "$target" = "multitool" ]; then
+      echo "mips"
     else
       echo "$target"
     fi
@@ -65,6 +71,10 @@ function target_base() {
 
 function target_is_small() {
     [ "${1%-small}" != "$1" ]
+}
+
+function target_is_multitool() {
+    [ "${1%-small}" = "multitool" ]
 }
 
 function normalize_build_target() {
@@ -96,7 +106,7 @@ while [ $# -gt 0 ]; do
         TARGET=$1
         TARGET_BASE=$(target_base "$TARGET")
         if [ "$TARGET_BASE" != "mips" ] && [ "$TARGET_BASE" != "rpi" ] && [ "$TARGET_BASE" != "sdl" ]; then
-          echo "ERROR: mips, mips-small, rpi, rpi-small, sdl or sdl-small target must be specified"
+          echo "ERROR: mips, mips-small, multitool, multitool-small, rpi, rpi-small, sdl or sdl-small target must be specified"
           exit 1
         fi
         if target_is_small "$TARGET"; then
@@ -146,7 +156,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -n "$TARGET" ] && ! is_build_target "$TARGET"; then
-  echo "ERROR: mips, mips-small, rpi, rpi-small, sdl or sdl-small target must be specified"
+  echo "ERROR: mips, mips-small, multitool, multitool-small, rpi, rpi-small, sdl or sdl-small target must be specified"
   exit 1
 fi
 

@@ -108,10 +108,15 @@ ExtruderPanel::ExtruderPanel(KWebSocketClient &websocket_client,
   , speed_options(load_selector_options("/ui/extruder_speed_presets", 8))
   , speed_option_map(build_selector_map(speed_options))
   , speed_default_idx(resolve_default_idx("/ui/extruder_speed_default", speed_options))
+#ifdef GUPPY_MULTITOOL
   , header(create_row(panel_cont))
   , extruder_temp(ws, header, Icons::EXTRUDER, "Extruder", theme_secondary(), false, true, numpad,
                   "extruder", NULL, NULL)
   , extruder_dd(lv_dropdown_create(header))
+#else
+  , extruder_temp(ws, panel_cont, Icons::EXTRUDER, "Extruder", theme_secondary(), false, true, numpad,
+                  "extruder", NULL, NULL)
+#endif
   , tabview(lv_tabview_create(panel_cont, LV_DIR_TOP, scale_r(36)))
   , load_tab(lv_tabview_add_tab(tabview, "Load / Unload"))
   , extrude_tab(lv_tabview_add_tab(tabview, "Extrude / Retract"))
@@ -143,6 +148,7 @@ ExtruderPanel::ExtruderPanel(KWebSocketClient &websocket_client,
   static lv_coord_t grid_panel_col_dsc[] = {LV_GRID_FR(1), (lv_coord_t)scale_w(90), LV_GRID_TEMPLATE_LAST};
   static lv_coord_t grid_panel_row_dsc[] = {LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
   lv_obj_set_grid_dsc_array(panel_cont, grid_panel_col_dsc, grid_panel_row_dsc);
+#ifdef GUPPY_MULTITOOL
   lv_obj_set_grid_cell(header, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_START, 0, 1);
   lv_obj_set_height(header, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(header, LV_FLEX_FLOW_ROW);
@@ -153,6 +159,9 @@ ExtruderPanel::ExtruderPanel(KWebSocketClient &websocket_client,
   lv_obj_set_width(extruder_dd, scale_w(150));
   lv_obj_add_event_cb(extruder_dd, &ExtruderPanel::_handle_extruder_select, LV_EVENT_VALUE_CHANGED, this);
   lv_obj_add_flag(extruder_dd, LV_OBJ_FLAG_HIDDEN);
+#else
+  lv_obj_set_grid_cell(extruder_temp.get_sensor(), LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_START, 0, 1);
+#endif
   lv_obj_set_grid_cell(tabview, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 1, 1);
   lv_obj_set_grid_cell(right_col, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_STRETCH, 0, 2);
   for (lv_obj_t *tab : {load_tab, extrude_tab}) {
@@ -219,7 +228,9 @@ ExtruderPanel::~ExtruderPanel() {
 }
 
 void ExtruderPanel::foreground() {
+#ifdef GUPPY_MULTITOOL
   refresh_extruders();
+#endif
   lv_tabview_set_act(tabview, lv_obj_get_index(load_tab), LV_ANIM_OFF);
   lv_obj_move_foreground(panel_cont);
 }
@@ -237,6 +248,7 @@ void ExtruderPanel::show_spoolman(bool shown) {
   else lv_obj_add_flag(spoolman_btn.get_container(), LV_OBJ_FLAG_HIDDEN);
 }
 
+#ifdef GUPPY_MULTITOOL
 // "extruder" is T0, "extruderN" is TN
 static int extruder_tool(const std::string &name) {
   const std::string digits = name.substr(std::string("extruder").size());
@@ -300,13 +312,16 @@ void ExtruderPanel::handle_extruder_select(lv_event_t *e) {
     ws.gcode_script(fmt::format("ACTIVATE_EXTRUDER EXTRUDER={}", name));
   }
 }
+#endif  // GUPPY_MULTITOOL
 
 void ExtruderPanel::consume(json& j) {
   std::lock_guard<std::mutex> lock(lv_lock);
+#ifdef GUPPY_MULTITOOL
   json &toolhead_extruder = j["/params/0/toolhead/extruder"_json_pointer];
   if (toolhead_extruder.is_string()) {
     set_active_extruder(toolhead_extruder.template get<std::string>());
   }
+#endif
 
   auto target_value = j[json::json_pointer("/params/0/" + active_extruder + "/target")];
   if (!target_value.is_null()) {

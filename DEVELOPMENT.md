@@ -28,6 +28,7 @@ Clone the grumpyscreen repo (and submodules) and apply a couple of patches local
 ```
 ./build.sh mips [--small]
 ./build.sh mips [--small] --printer IP_ADDRESS_OF_PRINTER --password PRINTER_PASSWORD
+./build.sh multitool [--small]
 ```
 
 The second form directly deploys it to your printer or dev box.
