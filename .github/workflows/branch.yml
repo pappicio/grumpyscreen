@@ -1,3 +1,4 @@
+
 name: branch build
 
 on:
@@ -30,37 +31,20 @@ permissions:
   contents: read
 
 jobs:
+
+  # ==========================================
+  # BUILD MANUALE E PULL REQUEST
+  # ==========================================
+
   compile:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: mips
-            arch: mipsel-buildroot-linux-musl-
-            small: false
-            calibrate: false
-            build_dir: build/mips
-
-          - target: mips-small
-            arch: mipsel-buildroot-linux-musl-
-            small: true
-            calibrate: true
-            build_dir: build/mips-small
-
-          - target: rpi
-            arch: armv8-rpi3-linux-gnueabihf-
-            small: false
-            calibrate: true
-            build_dir: build/rpi
-
-    runs-on: ubuntu-22.04
-
-    if: |
-      github.event_name == 'pull_request' ||
-      inputs.build_type == 'all' ||
-      inputs.build_type == matrix.target
+        include: ${{ fromJSON(inputs.build_type == 'mips' && '[{"target":"mips","arch":"mipsel-buildroot-linux-musl-","small":false,"calibrate":false,"asset":"grumpyscreen","build_dir":"build/mips"}]' || inputs.build_type == 'mips-small' && '[{"target":"mips-small","arch":"mipsel-buildroot-linux-musl-","small":true,"calibrate":true,"asset":"grumpyscreen-smallscreen","build_dir":"build/mips-small"}]' || inputs.build_type == 'rpi' && '[{"target":"rpi","arch":"armv8-rpi3-linux-gnueabihf-","small":false,"calibrate":true,"asset":"grumpyscreen-rpi","build_dir":"build/rpi"}]' || '[{"target":"mips","arch":"mipsel-buildroot-linux-musl-","small":false,"calibrate":false,"asset":"grumpyscreen","build_dir":"build/mips"},{"target":"mips-small","arch":"mipsel-buildroot-linux-musl-","small":true,"calibrate":true,"asset":"grumpyscreen-smallscreen","build_dir":"build/mips-small"},{"target":"rpi","arch":"armv8-rpi3-linux-gnueabihf-","small":false,"calibrate":true,"asset":"grumpyscreen-rpi","build_dir":"build/rpi"}]') }}
 
     container:
       image: pellcorp/grumpydev:latest
@@ -86,13 +70,13 @@ jobs:
         echo "GUPPYSCREEN_VERSION=$VERSION" >> $GITHUB_ENV
         echo "Building branch $BRANCH, version $VERSION"
 
-    - if: matrix.small
-      name: export screen size
+    - name: export screen size
+      if: matrix.small
       run: |
         echo "GUPPY_SMALL_SCREEN=${{ matrix.small }}" >> $GITHUB_ENV
 
-    - if: matrix.calibrate
-      name: export touch calibrate
+    - name: export touch calibrate
+      if: matrix.calibrate
       run: |
         echo "GUPPY_CALIBRATE=${{ matrix.calibrate }}" >> $GITHUB_ENV
 
@@ -106,17 +90,21 @@ jobs:
       run: make -j
 
     - name: package release
-      if: github.event_name == 'workflow_dispatch' && inputs.publish == false
       run: |
         chmod +x ./release.sh
         ./release.sh grumpyscreen-${{ matrix.target }} ${{ matrix.build_dir }}
 
-    - name: upload compiled binary
+    - name: upload compiled package
       uses: actions/upload-artifact@v7
       with:
         name: grumpyscreen-${{ matrix.target }}
-        path: ./*.tar.gz
+        path: ./grumpyscreen-${{ matrix.target }}.tar.gz
         if-no-files-found: error
+
+
+  # ==========================================
+  # BUILD E PUBBLICAZIONE RELEASE
+  # ==========================================
 
   release:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
@@ -124,33 +112,12 @@ jobs:
     permissions:
       contents: write
 
+    runs-on: ubuntu-22.04
+
     strategy:
       fail-fast: false
       matrix:
-      
-        include:
-          - target: mips
-            arch: mipsel-buildroot-linux-musl-
-            small: false
-            asset: grumpyscreen
-            calibrate: false
-            build_dir: build/mips
-
-          - target: mips-small
-            arch: mipsel-buildroot-linux-musl-
-            small: true
-            asset: grumpyscreen-smallscreen
-            calibrate: true
-            build_dir: build/mips-small
-
-          - target: rpi
-            arch: armv8-rpi3-linux-gnueabihf-
-            small: false
-            calibrate: true
-            asset: grumpyscreen-rpi
-            build_dir: build/rpi
-
-    runs-on: ubuntu-22.04
+        include: ${{ fromJSON(inputs.build_type == 'mips' && '[{"target":"mips","arch":"mipsel-buildroot-linux-musl-","small":false,"calibrate":false,"asset":"grumpyscreen","build_dir":"build/mips"}]' || inputs.build_type == 'mips-small' && '[{"target":"mips-small","arch":"mipsel-buildroot-linux-musl-","small":true,"calibrate":true,"asset":"grumpyscreen-smallscreen","build_dir":"build/mips-small"}]' || inputs.build_type == 'rpi' && '[{"target":"rpi","arch":"armv8-rpi3-linux-gnueabihf-","small":false,"calibrate":true,"asset":"grumpyscreen-rpi","build_dir":"build/rpi"}]' || '[{"target":"mips","arch":"mipsel-buildroot-linux-musl-","small":false,"calibrate":false,"asset":"grumpyscreen","build_dir":"build/mips"},{"target":"mips-small","arch":"mipsel-buildroot-linux-musl-","small":true,"calibrate":true,"asset":"grumpyscreen-smallscreen","build_dir":"build/mips-small"},{"target":"rpi","arch":"armv8-rpi3-linux-gnueabihf-","small":false,"calibrate":true,"asset":"grumpyscreen-rpi","build_dir":"build/rpi"}]') }}
 
     container:
       image: pellcorp/grumpydev:latest
@@ -176,13 +143,13 @@ jobs:
         echo "GUPPYSCREEN_VERSION=$VERSION" >> $GITHUB_ENV
         echo "Building branch $BRANCH, version $VERSION"
 
-    - if: matrix.small
-      name: export screen size
+    - name: export screen size
+      if: matrix.small
       run: |
         echo "GUPPY_SMALL_SCREEN=${{ matrix.small }}" >> $GITHUB_ENV
 
-    - if: matrix.calibrate
-      name: export touch calibrate
+    - name: export touch calibrate
+      if: matrix.calibrate
       run: |
         echo "GUPPY_CALIBRATE=${{ matrix.calibrate }}" >> $GITHUB_ENV
 
@@ -200,7 +167,8 @@ jobs:
         chmod +x ./release.sh
         ./release.sh ${{ matrix.asset }} ${{ matrix.build_dir }}
 
-    - uses: actions/upload-artifact@v7
+    - name: upload release package
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.asset }}
         path: ./${{ matrix.asset }}.tar.gz
@@ -215,11 +183,19 @@ jobs:
           ${{ matrix.asset }}.tar.gz
         fail_on_unmatched_files: true
 
+
+  # ==========================================
+  # ZIP RELEASE PER MOONRAKER
+  # ==========================================
+
   zip-release:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish && inputs.build_type == 'all')
+
     needs: release
+
     permissions:
       contents: write
+
     runs-on: ubuntu-22.04
 
     steps:
@@ -235,12 +211,16 @@ jobs:
       run: |
         VERSION="v2.0.0-$(git rev-list --count HEAD)"
         echo "VERSION=$VERSION" >> $GITHUB_ENV
+
         for asset in grumpyscreen grumpyscreen-smallscreen grumpyscreen-rpi; do
           mkdir -p "unpack/$asset"
           tar xzf "artifacts/$asset/$asset.tar.gz" -C "unpack/$asset"
           cd "unpack/$asset/grumpyscreen"
+
           printf '{"project_name": "grumpyscreen", "project_owner": "pellcorp", "version": "%s", "asset_name": "%s.zip"}\n' "$VERSION" "$asset" > release_info.json
+
           zip -r "$GITHUB_WORKSPACE/$asset.zip" .
+
           cd "$GITHUB_WORKSPACE"
         done
 
